@@ -764,7 +764,7 @@ static ssize_t dev_class_store(struct device *dev,
 							  0x51);
 #else
 			optoe->optoe_dummy.client =
-				i2c_new_dummy(client->adapter, 0x51);
+				i2c_new_dummy_device(client->adapter, 0x51);
 #endif
 			if (!optoe->optoe_dummy.client) {
 				dev_err(&client->dev,
@@ -930,7 +930,7 @@ static int optoe_probe(struct i2c_client *client,
 			devm_i2c_new_dummy_device(dev, client->adapter, 0x51);
 #else
 		optoe->optoe_dummy.client =
-			i2c_new_dummy(client->adapter, 0x51);
+			i2c_new_dummy_device(client->adapter, 0x51);
 #endif
 		if (!optoe->optoe_dummy.client) {
 			dev_err(dev, "address 0x51 unavailable\n");

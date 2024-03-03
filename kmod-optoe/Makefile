@@ -10,7 +10,7 @@ PKG_RELEASE:=0.1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/ghhccghk/optoe-linux-device.git
-PKG_SOURCE_VERSION:=v0.1
+PKG_SOURCE_VERSION:=d627514c64f0ecb0bb7890cd3c3db8b9a9c7cc32
 PKG_MIRROR_HASH:=skip
 
 PKG_MAINTAINER:=Don Bollinger (don@thebollingers.org)
