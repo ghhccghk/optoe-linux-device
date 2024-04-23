@@ -618,7 +618,7 @@ static int optoe_nvmem_write(void *priv, unsigned int off,
 	return optoe_read_write(optoe, buf, off, count, OPTOE_WRITE_OP);
 }
 
-static int optoe_remove(struct i2c_client *client)
+static void optoe_remove(struct i2c_client *client)
 {
 	struct optoe_data *optoe;
 
@@ -634,7 +634,6 @@ static int optoe_remove(struct i2c_client *client)
 		i2c_unregister_device(optoe->optoe_dummy.client);
 #endif
 	kfree(optoe);
-	return 0;
 }
 
 #ifndef LATEST_KERNEL
