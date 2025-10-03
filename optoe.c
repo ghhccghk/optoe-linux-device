@@ -124,6 +124,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 /* The maximum length of a port name */
 #define MAX_PORT_NAME_LEN 20
@@ -295,7 +296,7 @@ static int optoe_regmap_rw(struct optoe_data *optoe,
 		access_time = jiffies;
 
 		if (opcode == OPTOE_READ_OP) {
-#ifndef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 			/*
 			 * bug in regmap SMBUS code fails on reads
 			 * longer than OR EQUAL TO SMBUS_BLOCK_MAX
@@ -624,7 +625,7 @@ static void optoe_remove(struct i2c_client *client)
 
 	optoe = i2c_get_clientdata(client);
 	sysfs_remove_group(&client->dev.kobj, &optoe->attr_group);
-#ifndef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 	nvmem_unregister(optoe->nvmem);
 	/*
 	 * note, optoe did not register 'client', so don't unregister it
@@ -636,7 +637,7 @@ static void optoe_remove(struct i2c_client *client)
 	kfree(optoe);
 }
 
-#ifndef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 static void null_regmap_lock(void *foo)
 {
 }
@@ -660,7 +661,7 @@ static struct regmap *optoe_make_regmap(struct i2c_client *client)
 	regmap_config.reg_bits = 8;
 
 	/* I'll handle the locking */
-#ifdef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 	regmap_config.disable_locking = true;
 #else
 	regmap_config.lock = null_regmap_lock;
@@ -683,7 +684,7 @@ static int optoe_make_nvmem(struct optoe_data *optoe)
 	struct device *dev = &client->dev;
 
 	nvmem_config.name = optoe->port_name;
-#ifdef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 	/* NVMEM_DEVID_NONE tells nvmem not to append '0' to name */
 	nvmem_config.id = NVMEM_DEVID_NONE;
 #endif
@@ -699,18 +700,19 @@ static int optoe_make_nvmem(struct optoe_data *optoe)
 	nvmem_config.stride = 1;
 	nvmem_config.word_size = 1;
 	nvmem_config.size = optoe->byte_len;
-#ifdef LATEST_KERNEL
-	if (optoe->nvmem)
-		devm_nvmem_unregister(dev, optoe->nvmem);
-	optoe->nvmem = devm_nvmem_register(dev, &nvmem_config);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    if (optoe->nvmem)
+        nvmem_unregister(optoe->nvmem);
+    optoe->nvmem = devm_nvmem_register(dev, &nvmem_config);
 #else
-	if (optoe->nvmem)
-		nvmem_unregister(optoe->nvmem);
-	optoe->nvmem = nvmem_register(&nvmem_config);
+    if (optoe->nvmem)
+        nvmem_unregister(optoe->nvmem);
+    optoe->nvmem = nvmem_register(&nvmem_config);
 #endif
-	dev_info(dev, "%u byte class %d EEPROM\n",
-		optoe->byte_len, optoe->dev_class);
-	return 0;
+    dev_info(dev, "%u byte class %d EEPROM\n",
+        optoe->byte_len, optoe->dev_class);
+    return 0;
+
 }
 
 static ssize_t dev_class_show(struct device *dev,
@@ -756,7 +758,7 @@ static ssize_t dev_class_store(struct device *dev,
 		/* SFP family */
 		/* if it doesn't exist, create 0x51 i2c address */
 		if (!optoe->optoe_dummy.client) {
-#ifdef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 			optoe->optoe_dummy.client =
 				devm_i2c_new_dummy_device(dev,
 							  client->adapter,
@@ -843,7 +845,7 @@ static struct attribute_group optoe_attr_group = {
 	.attrs = optoe_attrs,
 };
 
-#ifdef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 static int optoe_probe(struct i2c_client *client)
 #else
 static int optoe_probe(struct i2c_client *client,
@@ -924,7 +926,7 @@ static int optoe_probe(struct i2c_client *client,
 
 	/* SFF-8472 spec requires that the second I2C address be 0x51 */
 	if (optoe->dev_class == TWO_ADDR) {
-#ifdef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 		optoe->optoe_dummy.client =
 			devm_i2c_new_dummy_device(dev, client->adapter, 0x51);
 #else
@@ -962,7 +964,7 @@ static int optoe_probe(struct i2c_client *client,
 	return 0;
 
 err_struct:
-#ifndef LATEST_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 	if (optoe->optoe_dummy.client)
 		i2c_unregister_device(optoe->optoe_dummy.client);
 #endif
@@ -976,17 +978,19 @@ exit:
 /*-------------------------------------------------------------------------*/
 
 static struct i2c_driver optoe_driver = {
-	.driver = {
-		.name = "optoe",
-		.owner = THIS_MODULE,
-	},
-#ifdef LATEST_KERNEL
-	.probe_new = optoe_probe,
+    .driver = {
+        .name = "optoe",
+        .owner = THIS_MODULE,
+    },
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    .probe = optoe_probe,           /* 6.1+ */
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+    .probe_new = optoe_probe,       /* 5.18 ~ 6.0 */
 #else
-	.probe = optoe_probe,
+    .probe = optoe_probe,           /* old kernels */
 #endif
-	.remove = optoe_remove,
-	.id_table = optoe_ids,
+    .remove = optoe_remove,
+    .id_table = optoe_ids,
 };
 
 static int __init optoe_init(void)
